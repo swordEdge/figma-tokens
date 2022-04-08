@@ -1,8 +1,8 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { Resources } from '@gitbeaker/core';
-import { Bitbucket } from 'bitbucket';
+import { Bitbucket, APIClient } from 'bitbucket';
 import { cssNumber } from 'cypress/types/jquery';
 import { MessageToPluginTypes } from '@/types/messages';
+import { Dispatch } from '@/app/store';
 import convertTokensToObject from '@/utils/convertTokensToObject';
 import useConfirm from '@/app/hooks/useConfirm';
 import usePushDialog from '@/app/hooks/usePushDialog';
@@ -17,7 +17,8 @@ type TokenSets = {
   [key: string]: AnyTokenSet;
 };
 
-const bitbucket = new Bitbucket();
+type UUID = string | null | undefined;
+
 /** Returns a URL to a page where the user can create a pull request with a given branch */
 export function getCreatePullRequestUrl(id: string, branchName: string) {
   return `https://bitbucket.com/${id}/compare/${branchName}?expand=1`;
@@ -27,9 +28,9 @@ const getBitbucketOptions = (context: ContextObject) => {
   const { secret, baseUrl } = context;
 
   if (baseUrl && baseUrl.length > 0) {
-    return { token: secret, host: baseUrl };
+    return { auth: { token: secret } , baseUrl };
   }
-  return { token: secret };
+  return { auth: { token: secret } };
 };
 
 const hasSameContent = (content: TokenValues, storedContent: string) => {
@@ -39,62 +40,53 @@ const hasSameContent = (content: TokenValues, storedContent: string) => {
 
 const createBranch = async ({
   api, projectId, branch, from,
-} : { api: Resources.Bitbucket, projectId: number, branch: string, from: string }) => api.Branches.create(projectId, branch, from);
+} : { api: APIClient, projectId: number, branch: string, from: string }) => api.Branches.create(projectId, branch, from);
 
-const getProjectId = async ({ api, owner, repo } : { api: Resources.Bitbucket, owner: string, repo: string }) => {
-  const users = await api.Users.username(owner);
+const getWorkspaceUUID = async ({ api, owner } : { api: APIClient, owner: string }) => {
+  const q = `slug="${owner}"`;
+  const { data } = await api.workspaces.getWorkspaces({ q });
+  const workspaces = data.values;
 
-  if (Array.isArray(users) && users.length > 0) {
-    const projectsInPerson = await api.Users.projects(users[0].id);
-    const project = projectsInPerson.filter((p) => p.path === repo)[0];
-    return project && project.id;
+  if (workspaces && workspaces.length > 0) {
+    return workspaces[0].uuid;
   }
-  const projectsInGroup = await api.Groups.projects(owner);
-  const project = projectsInGroup.filter((p) => p.path === repo)[0];
-  return project && project.id;
+
+  return null;
 };
 
-const getGroupProjectId = async ({ api, owner, repo } : { api: Resources.Bitbucket, owner: string, repo: string }) => {
-  const users = await api.Users.username(owner);
-  let project;
+const getRepositoryUUID = async ({ api, workspace, repo } : { api: APIClient, workspace: UUID, repo: string }) => {
+  const q = `name="${repo}"`;
+  const { data } = await api.repositories.list({ workspace, q });
+  const repositories  = data.values;
 
-  if (Array.isArray(users) && users.length > 0) {
-    const projectsInPerson = await api.Users.projects(users[0].id);
-    project = projectsInPerson.filter((p) => p.path === repo)[0];
-  } else {
-    const projectsInGroup = await api.Groups.projects(owner);
-    project = projectsInGroup.filter((p) => p.path === repo)[0];
+  if (repositories && repositories.length > 0) {
+    return repositories[0].uuid;
   }
 
-  return { projectId: project && project.id, groupId: project && project.namespace.id };
+  return null;
 };
 
 const readFileContent = async ({
   api, projectId, filePath, branch,
-} : { api: Resources.Bitbucket, projectId: number, filePath: string, branch: string }) => api.RepositoryFiles.showRaw(projectId, filePath, { ref: branch });
+} : { api: APIClient, projectId: number, filePath: string, branch: string }) => api.RepositoryFiles.showRaw(projectId, filePath, { ref: branch });
 
-const checkTreeInPath = async ({ api, projectId, filePath } : { api: Resources.Bitbucket, projectId: number, filePath: string }) => api.Repositories.tree(projectId, { path: filePath });
+const checkTreeInPath = async ({ api, projectId, filePath } : { api: APIClient, projectId: number, filePath: string }) => api.Repositories.tree(projectId, { path: filePath });
 
-const getBranches = async ({ workspace, repo } : { workspace: string, repo: string }) => {
-  // const branches = await api.Branches.all(projectId);
-  // return branches.map((branch) => branch.name);
-  console.log('getbranch');
-  const { data, headers } = await bitbucket.repositories.listBranches(repo, workspace);
-  // const { data, headers } = await bitbucket.refs.listBranches({ repo, workspace });
-  console.log('getbranches data', data);
-  return data;
-};
-
-export const fetchBranches = async ({ workspace, repo }: { workspace: string, repo: string }) => {
-  // const api = new Bitbucket(getBitbucketOptions(context));
-  // const projectId = await getProjectId({ project, repo });
-  console.log('fetchbranch start');
-  const branches = await getBranches({ workspace, repo });
-
+const getBranches = async ({ api, workspace, repository } : { api: APIClient, workspace: UUID, repository: UUID }) => {
+  const { data } = await api.repositories.listBranches({ repo_slug: repository, workspace });
+  const branches = data.values;
   return branches;
 };
 
-export const checkPermissions = async ({ api, groupId, projectId }: { api: Resources.Bitbucket, groupId: number, projectId: number }) => {
+export const fetchBranches = async ({ context, owner, repo }: { context: ContextObject, owner: string, repo: string }) => {
+  const api = new Bitbucket(getBitbucketOptions(context));
+  const workspace = await getWorkspaceUUID({ api, owner });
+  const repository = await getRepositoryUUID({ api, workspace, repo });
+  const branches = await getBranches({ api, workspace, repository });
+  return branches;
+};
+
+export const checkPermissions = async ({ api, groupId, projectId }: { api: APIClient, groupId: number, projectId: number }) => {
   try {
     const currentUser = await api.Users.current();
 
@@ -206,7 +198,7 @@ const extractFiles = (filePath: string, tokenObj: TokenSets, opts: FeatureFlagOp
 };
 
 const createFiles = (
-  api: Resources.Bitbucket,
+  api: APIClient,
   context: {
     projectId: number;
     branch: string;
@@ -311,7 +303,7 @@ export function useBitbucket() {
     return null;
   }
 
-  async function pushTokensToBitBucket(context: ContextObject) {
+  async function pushTokensToBitbucket(context: ContextObject) {
     const { raw: rawTokenObj, string: tokenObj } = getTokenObj();
     const [owner, repo] = context.id.split('/');
 
@@ -356,13 +348,14 @@ export function useBitbucket() {
 
   async function checkAndSetAccess({ context, owner, repo }: { context: ContextObject; owner: string; repo: string }) {
     const api = new Bitbucket(getBitbucketOptions(context));
-    const { projectId, groupId } = await getGroupProjectId({ api, owner, repo });
+    const workspace = await getWorkspaceUUID({ api, owner });
+    const repo = await
     const permission = await checkPermissions({ api, groupId, projectId });
 
     dispatch.tokenState.setEditProhibited(!(permission?.access_level > BitBucketAccessLevel.Developer));
   }
 
-  async function pullTokensFromBitBucket(context: ContextObject, receivedFeatureFlags?: FeatureFlags) {
+  async function pullTokensFromBitbucket(context: ContextObject, receivedFeatureFlags?: FeatureFlags) {
     const multiFile = receivedFeatureFlags ? receivedFeatureFlags.gh_mfs_enabled : featureFlags?.gh_mfs_enabled;
 
     const [owner, repo] = context.id.split('/');
@@ -387,18 +380,17 @@ export function useBitbucket() {
   }
 
   // Function to initially check auth and sync tokens with BitBucket
-  async function syncTokensWithBitBucket(context: ContextObject): Promise<TokenValues | null> {
+  async function syncTokensWithBitbucket(context: ContextObject): Promise<TokenValues | null> {
     try {
-      const [workspace, repo] = context.id.split('/');
-      console.log('synctokenwithbucket', workspace, 'workspace', repo, 'repo');
+      const [owner, repo] = context.id.split('/');
 
-      const hasBranches = await fetchBranches({ workspace, repo });
+      const hasBranches = await fetchBranches({ context, owner, repo });
 
       if (!hasBranches) {
         return null;
       }
 
-      const content = await pullTokensFromBitBucket(context);
+      const content = await pullTokensFromBitbucket(context);
 
       const { string: tokenObj } = getTokenObj();
 
@@ -415,7 +407,7 @@ export function useBitbucket() {
         }
         return content;
       }
-      return await pushTokensToBitBucket(context);
+      return await pushTokensToBitbucket(context);
     } catch (e) {
       notifyToUI('Error syncing with BitBucket, check credentials', { error: true });
       console.log('Error', e);
@@ -423,10 +415,10 @@ export function useBitbucket() {
     }
   }
 
-  async function addNewBitBucketCredentials(context: ContextObject): Promise<TokenValues | null> {
+  async function addNewBitbucketCredentials(context: ContextObject): Promise<TokenValues | null> {
     let { raw: rawTokenObj } = getTokenObj();
 
-    const data = await syncTokensWithBitBucket(context);
+    const data = await syncTokensWithBitbucket(context);
     if (data) {
       postToFigma({
         type: MessageToPluginTypes.CREDENTIALS,
@@ -449,9 +441,9 @@ export function useBitbucket() {
   }
 
   return {
-    addNewBitBucketCredentials,
-    syncTokensWithBitBucket,
-    pullTokensFromBitBucket,
-    pushTokensToBitBucket,
+    addNewBitbucketCredentials,
+    syncTokensWithBitbucket,
+    pullTokensFromBitbucket,
+    pushTokensToBitbucket,
   };
 }

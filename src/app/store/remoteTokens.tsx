@@ -27,7 +27,7 @@ export default function useRemoteTokens() {
     addNewGitLabCredentials, syncTokensWithGitLab, pullTokensFromGitLab, pushTokensToGitLab,
   } = useGitLab();
   const {
-    addNewBitBucketCredentials, syncTokensWithBitBucket, pullTokensFromBitBucket, pushTokensToBitBucket,
+    addNewBitbucketCredentials, syncTokensWithBitbucket, pullTokensFromBitbucket, pushTokensToBitbucket,
   } = useBitbucket();
   const { pullTokensFromURL } = useURL();
 
@@ -94,7 +94,7 @@ export default function useRemoteTokens() {
         break;
       }
       case StorageProviderType.BITBUCKET: {
-        await syncTokensWithBitBucket(context);
+        await syncTokensWithBitbucket(context);
         break;
       }
       default:
@@ -115,7 +115,7 @@ export default function useRemoteTokens() {
         break;
       }
       case StorageProviderType.BITBUCKET: {
-        await pushTokensToBitBucket(api);
+        await pushTokensToBitbucket(api);
         break;
       }
       default:
@@ -146,7 +146,7 @@ export default function useRemoteTokens() {
         break;
       }
       case StorageProviderType.BITBUCKET: {
-        data = await addNewBitBucketCredentials(credentials);
+        data = await addNewBitbucketCredentials(credentials);
         break;
       }
       case StorageProviderType.URL: {
