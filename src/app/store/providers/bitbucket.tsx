@@ -17,7 +17,10 @@ type TokenSets = {
   [key: string]: AnyTokenSet;
 };
 
-type UUID = string | null | undefined;
+enum PlaceHolder {
+  WORKSPACE = 'workspace',
+  REPOSITORY = 'repository',
+}
 
 /** Returns a URL to a page where the user can create a pull request with a given branch */
 export function getCreatePullRequestUrl(id: string, branchName: string) {
@@ -28,7 +31,7 @@ const getBitbucketOptions = (context: ContextObject) => {
   const { secret, baseUrl } = context;
 
   if (baseUrl && baseUrl.length > 0) {
-    return { auth: { token: secret } , baseUrl };
+    return { auth: { token: secret }, baseUrl };
   }
   return { auth: { token: secret } };
 };
@@ -39,8 +42,8 @@ const hasSameContent = (content: TokenValues, storedContent: string) => {
 };
 
 const createBranch = async ({
-  api, projectId, branch, from,
-} : { api: APIClient, projectId: number, branch: string, from: string }) => api.Branches.create(projectId, branch, from);
+  api, repository, workspace,
+} : { api: APIClient, repository: string, workspace: string }) => api.repositories.createBranch({ _body: '', repo_slug: repository, workspace });
 
 const getWorkspaceUUID = async ({ api, owner } : { api: APIClient, owner: string }) => {
   const q = `slug="${owner}"`;
@@ -48,22 +51,22 @@ const getWorkspaceUUID = async ({ api, owner } : { api: APIClient, owner: string
   const workspaces = data.values;
 
   if (workspaces && workspaces.length > 0) {
-    return workspaces[0].uuid;
+    return workspaces[0].uuid || PlaceHolder.WORKSPACE;
   }
 
-  return null;
+  return PlaceHolder.WORKSPACE;
 };
 
-const getRepositoryUUID = async ({ api, workspace, repo } : { api: APIClient, workspace: UUID, repo: string }) => {
+const getRepositoryUUID = async ({ api, workspace, repo } : { api: APIClient, workspace: string, repo: string }) => {
   const q = `name="${repo}"`;
   const { data } = await api.repositories.list({ workspace, q });
-  const repositories  = data.values;
+  const repositories = data.values;
 
   if (repositories && repositories.length > 0) {
-    return repositories[0].uuid;
+    return repositories[0].uuid || PlaceHolder.REPOSITORY;
   }
 
-  return null;
+  return PlaceHolder.REPOSITORY;
 };
 
 const readFileContent = async ({
@@ -72,10 +75,10 @@ const readFileContent = async ({
 
 const checkTreeInPath = async ({ api, projectId, filePath } : { api: APIClient, projectId: number, filePath: string }) => api.Repositories.tree(projectId, { path: filePath });
 
-const getBranches = async ({ api, workspace, repository } : { api: APIClient, workspace: UUID, repository: UUID }) => {
+const getBranches = async ({ api, workspace, repository } : { api: APIClient, workspace: string, repository: string }) => {
   const { data } = await api.repositories.listBranches({ repo_slug: repository, workspace });
-  const branches = data.values;
-  return branches;
+  const branches = data.values || [];
+  return branches.map((branch) => branch.name);
 };
 
 export const fetchBranches = async ({ context, owner, repo }: { context: ContextObject, owner: string, repo: string }) => {
@@ -86,19 +89,17 @@ export const fetchBranches = async ({ context, owner, repo }: { context: Context
   return branches;
 };
 
-export const checkPermissions = async ({ api, groupId, projectId }: { api: APIClient, groupId: number, projectId: number }) => {
+export const checkPermissions = async ({ api, repository }: { api: APIClient, repository: string }) => {
   try {
-    const currentUser = await api.Users.current();
+    const q = `repository.uuid = ${repository}`;
+    const { data } = await api.repositories.listPermissions({ q });
+    const repositories = data.values;
 
-    if (!currentUser || currentUser.state !== 'active') return null;
-
-    const groupPermission = await api.GroupMembers.show(groupId, currentUser.id);
-    if (groupPermission.access_level) {
-      return groupPermission;
+    if (repositories && repositories.length > 0) {
+      return repositories[0].permission;
     }
 
-    const projectPermission = await api.ProjectMembers.show(projectId, currentUser.id);
-    return projectPermission;
+    return null;
   } catch (e) {
     console.log(e);
 
@@ -107,74 +108,74 @@ export const checkPermissions = async ({ api, groupId, projectId }: { api: APICl
 };
 
 export const readContents = async ({
-  context, owner, repo, opts,
-}: { context: ContextObject, owner: string, repo: string, opts: FeatureFlagOpts }) => {
-  const api = new Bitbucket(getBitbucketOptions(context));
-  const projectId = await getProjectId({ api, owner, repo });
+  context, workspace, repository, opts,
+}: { context: ContextObject, workspace: string, repository: string, opts: FeatureFlagOpts }) => {
+  await Promise.all([]);
+  // const api = new Bitbucket(getBitbucketOptions(context));
 
-  try {
-    const { filePath, branch } = context;
-    const trees = await checkTreeInPath({ api, projectId, filePath });
-    const fileContents: Array<{ name: string; data: string }> = [];
-    if (trees.length > 0 && opts.multiFile) {
-      await Promise.all(
-        trees
-          .filter((tree) => tree.name?.endsWith('.json'))
-          .map((tree) => {
-            if (tree.name) {
-              return readFileContent({
-                api,
-                projectId,
-                filePath: tree.path,
-                branch,
-              })
-                .then((res) => {
-                  fileContents.push({
-                    name: tree.name?.replace('.json', ''),
-                    data: res,
-                  });
-                });
-            }
-            return null;
-          }),
-      );
-      if (fileContents.length > 0) {
-        const allContents = fileContents
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .reduce((acc, curr) => {
-            if (IsJSONString(curr.data)) {
-              const parsed = JSON.parse(curr.data);
+  // try {
+  //   const { filePath, branch } = context;
+  //   const trees = await checkTreeInPath({ api, projectId, filePath });
+  //   const fileContents: Array<{ name: string; data: string }> = [];
+  //   if (trees.length > 0 && opts.multiFile) {
+  //     await Promise.all(
+  //       trees
+  //         .filter((tree) => tree.name?.endsWith('.json'))
+  //         .map((tree) => {
+  //           if (tree.name) {
+  //             return readFileContent({
+  //               api,
+  //               projectId,
+  //               filePath: tree.path,
+  //               branch,
+  //             })
+  //               .then((res) => {
+  //                 fileContents.push({
+  //                   name: tree.name?.replace('.json', ''),
+  //                   data: res,
+  //                 });
+  //               });
+  //           }
+  //           return null;
+  //         }),
+  //     );
+  //     if (fileContents.length > 0) {
+  //       const allContents = fileContents
+  //         .sort((a, b) => a.name.localeCompare(b.name))
+  //         .reduce((acc, curr) => {
+  //           if (IsJSONString(curr.data)) {
+  //             const parsed = JSON.parse(curr.data);
 
-              acc[curr.name] = parsed;
-            }
-            return acc;
-          }, {});
-        return allContents ? { values: allContents } : null;
-      }
-    } else {
-      const content = await readFileContent({
-        api, projectId, filePath, branch,
-      });
-      if (IsJSONString(content)) {
-        return {
-          values: JSON.parse(content),
-        };
-      }
-    }
+  //             acc[curr.name] = parsed;
+  //           }
+  //           return acc;
+  //         }, {});
+  //       return allContents ? { values: allContents } : null;
+  //     }
+  //   } else {
+  //     const content = await readFileContent({
+  //       api, projectId, filePath, branch,
+  //     });
+  //     if (IsJSONString(content)) {
+  //       return {
+  //         values: JSON.parse(content),
+  //       };
+  //     }
+  //   }
 
-    return null;
-  } catch (e) {
-    // Raise error (usually this is an auth error)
-    console.log('Error', e);
-    return null;
-  }
+  //   return null;
+  // } catch (e) {
+  //   // Raise error (usually this is an auth error)
+  //   console.log('Error', e);
+  //   return null;
+  // }
 };
 
 type FeatureFlagOpts = {
   multiFile: boolean;
 };
 
-enum BitBucketAccessLevel {
+enum BitbucketAccessLevel {
   NoAccess = 0,
   MinimalAccess = 5,
   Guest = 10,
@@ -197,10 +198,11 @@ const extractFiles = (filePath: string, tokenObj: TokenSets, opts: FeatureFlagOp
   return files;
 };
 
-const createFiles = (
+const createFiles = async (
   api: APIClient,
   context: {
-    projectId: number;
+    workspace: string;
+    repository: string;
     branch: string;
     filePath: string;
     tokenObj: TokenSets;
@@ -208,16 +210,11 @@ const createFiles = (
   },
   opts: FeatureFlagOpts,
 ) => {
-  const files = extractFiles(context.filePath, context.tokenObj, opts);
-  return Promise.all(
-    Object.keys(files).map((path) => api.RepositoryFiles.create(
-      context.projectId,
-      path,
-      context.branch,
-      files[path],
-      context.commitMessage || 'Commit from Figma',
-    )),
-  );
+  const {
+    workspace, repository, branch, filePath, tokenObj, commitMessage,
+  } = context;
+  const files = extractFiles(filePath, tokenObj, opts);
+  return null;
 };
 
 export function useBitbucket() {
@@ -260,8 +257,9 @@ export function useBitbucket() {
   }): Promise<TokenValues | null> {
     try {
       const api = new Bitbucket(getBitbucketOptions(context));
-      const projectId = await getProjectId({ api, owner, repo });
-      const branches = await getBranches({ api, projectId });
+      const workspace = await getWorkspaceUUID({ api, owner });
+      const repository = await getRepositoryUUID({ api, workspace, repo });
+      const branches = await getBranches({ api, workspace, repository });
       const branch = customBranch || context.branch;
 
       if (!branches) return null;
@@ -270,7 +268,8 @@ export function useBitbucket() {
         await createFiles(
           api,
           {
-            projectId,
+            workspace,
+            repository,
             branch,
             filePath: context.filePath,
             tokenObj,
@@ -280,12 +279,13 @@ export function useBitbucket() {
         );
       } else {
         await createBranch({
-          api, projectId, branch, from: branches[0],
+          api, repository: repo, workspace,
         });
         await createFiles(
           api,
           {
-            projectId,
+            workspace,
+            repository,
             branch,
             filePath: context.filePath,
             tokenObj,
@@ -349,10 +349,10 @@ export function useBitbucket() {
   async function checkAndSetAccess({ context, owner, repo }: { context: ContextObject; owner: string; repo: string }) {
     const api = new Bitbucket(getBitbucketOptions(context));
     const workspace = await getWorkspaceUUID({ api, owner });
-    const repo = await
-    const permission = await checkPermissions({ api, groupId, projectId });
+    const repository = await getRepositoryUUID({ api, workspace, repo });
+    const permission = await checkPermissions({ api, repository });
 
-    dispatch.tokenState.setEditProhibited(!(permission?.access_level > BitBucketAccessLevel.Developer));
+    // dispatch.tokenState.setEditProhibited(!(permission?.access_level > BitBucketAccessLevel.Developer));
   }
 
   async function pullTokensFromBitbucket(context: ContextObject, receivedFeatureFlags?: FeatureFlags) {
