@@ -35,7 +35,7 @@ const SyncSettings = () => {
     setShowEditStorageModalVisible(true);
   };
 
-  const selectedRemoteProvider = () => [StorageProviderType.JSONBIN, StorageProviderType.GITHUB, StorageProviderType.GITLAB, StorageProviderType.URL].includes(
+  const selectedRemoteProvider = () => [StorageProviderType.JSONBIN, StorageProviderType.GITHUB, StorageProviderType.GITLAB, StorageProviderType.BITBUCKET, StorageProviderType.URL].includes(
     localApiState?.provider as StorageProviderType,
   );
 
@@ -87,6 +87,22 @@ const SyncSettings = () => {
             {' '}
             <a
               href="https://docs.tokens.studio/sync/gitlab"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              Read the guide
+            </a>
+            .
+          </div>
+        );
+      case StorageProviderType.BITBUCKET:
+        return (
+          <div>
+            Sync your tokens with a Bitbucket repository so your design decisions are up to date with code.
+            {' '}
+            <a
+              href="https://docs.tokens.studio/sync/bitbucket"
               target="_blank"
               rel="noreferrer"
               className="underline"
@@ -206,34 +222,49 @@ const SyncSettings = () => {
                 text="GitLab"
                 id={StorageProviderType.GITLAB}
               />
+              <ProviderSelector
+                isActive={localApiState?.provider === StorageProviderType.BITBUCKET}
+                isStored={storageType?.provider === StorageProviderType.BITBUCKET}
+                onClick={() => {
+                  dispatch.uiState.setLocalApiState({
+                    name: '',
+                    secret: '',
+                    id: '',
+                    branch: '',
+                    provider: StorageProviderType.BITBUCKET,
+                  });
+                }}
+                text="Bitbucket"
+                id={StorageProviderType.BITBUCKET}
+              />
             </Stack>
           </Stack>
           {selectedRemoteProvider() && (
-          <>
-            <Text muted size="xsmall">{storageProviderText()}</Text>
-            <Button
-              id="button-add-new-credentials"
-              variant="secondary"
-              onClick={() => {
-                track('Add Credentials', { provider: localApiState.provider });
-                setShowCreateStorageModalVisible(true);
-              }}
-            >
-              Add new credentials
-            </Button>
+            <>
+              <Text muted size="xsmall">{storageProviderText()}</Text>
+              <Button
+                id="button-add-new-credentials"
+                variant="secondary"
+                onClick={() => {
+                  track('Add Credentials', { provider: localApiState.provider });
+                  setShowCreateStorageModalVisible(true);
+                }}
+              >
+                Add new credentials
+              </Button>
 
-            {storedApiProviders().length > 0 && (
-              <Stack direction="column" gap={2} width="full" align="start">
-                {storedApiProviders().map((item) => (
-                  <StorageItem
-                    key={item.internalId || `${item.provider}-${item.id}-${item.secret}`}
-                    onEdit={() => handleEditClick(item)}
-                    item={item}
-                  />
-                ))}
-              </Stack>
-            )}
-          </>
+              {storedApiProviders().length > 0 && (
+                <Stack direction="column" gap={2} width="full" align="start">
+                  {storedApiProviders().map((item) => (
+                    <StorageItem
+                      key={item.internalId || `${item.provider}-${item.id}-${item.secret}`}
+                      onEdit={() => handleEditClick(item)}
+                      item={item}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </>
           )}
         </Stack>
       </Box>

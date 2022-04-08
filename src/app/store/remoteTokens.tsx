@@ -9,6 +9,7 @@ import { Dispatch } from '../store';
 import useStorage from './useStorage';
 import { useGitHub } from './providers/github';
 import { useGitLab } from './providers/gitlab';
+import { useBitbucket } from './providers/bitbucket';
 import { BackgroundJobs } from '@/constants/BackgroundJobs';
 import { FeatureFlags } from '@/utils/featureFlags';
 import { apiSelector } from '@/selectors';
@@ -25,6 +26,9 @@ export default function useRemoteTokens() {
   const {
     addNewGitLabCredentials, syncTokensWithGitLab, pullTokensFromGitLab, pushTokensToGitLab,
   } = useGitLab();
+  const {
+    addNewBitBucketCredentials, syncTokensWithBitBucket, pullTokensFromBitBucket, pushTokensToBitBucket,
+  } = useBitbucket();
   const { pullTokensFromURL } = useURL();
 
   const pullTokens = async (context = api, featureFlags?: FeatureFlags) => {
@@ -47,6 +51,10 @@ export default function useRemoteTokens() {
         break;
       }
       case StorageProviderType.GITLAB: {
+        tokenValues = await pullTokensFromGitLab(context, featureFlags);
+        break;
+      }
+      case StorageProviderType.BITBUCKET: {
         tokenValues = await pullTokensFromGitLab(context, featureFlags);
         break;
       }
@@ -85,6 +93,10 @@ export default function useRemoteTokens() {
         await syncTokensWithGitLab(context);
         break;
       }
+      case StorageProviderType.BITBUCKET: {
+        await syncTokensWithBitBucket(context);
+        break;
+      }
       default:
         await pullTokens(context);
     }
@@ -100,6 +112,10 @@ export default function useRemoteTokens() {
       }
       case StorageProviderType.GITLAB: {
         await pushTokensToGitLab(api);
+        break;
+      }
+      case StorageProviderType.BITBUCKET: {
+        await pushTokensToBitBucket(api);
         break;
       }
       default:
@@ -127,6 +143,10 @@ export default function useRemoteTokens() {
       }
       case StorageProviderType.GITLAB: {
         data = await addNewGitLabCredentials(credentials);
+        break;
+      }
+      case StorageProviderType.BITBUCKET: {
+        data = await addNewBitBucketCredentials(credentials);
         break;
       }
       case StorageProviderType.URL: {

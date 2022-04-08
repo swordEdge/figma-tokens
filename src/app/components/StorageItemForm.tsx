@@ -15,7 +15,8 @@ export default function StorageItemForm({
 
   switch (localApiState.provider) {
     case StorageProviderType.GITHUB:
-    case StorageProviderType.GITLAB: {
+    case StorageProviderType.GITLAB:
+    case StorageProviderType.BITBUCKET: {
       return (
         <GitForm
           handleChange={handleChange}

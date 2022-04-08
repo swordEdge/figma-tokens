@@ -21,6 +21,7 @@ export enum StorageProviderType {
   GITHUB = 'github',
   GITLAB = 'gitlab',
   URL = 'url',
+  BITBUCKET = 'bitbucket',
 }
 
 export interface ContextObject extends ApiDataType {
