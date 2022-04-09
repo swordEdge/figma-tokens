@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import Box from '../Box';
 import Button from '../Button';
 import Input from '../Input';
+import Heading from '../Heading';
 import Stack from '../Stack';
 
 export default function GitForm({
@@ -12,21 +13,31 @@ export default function GitForm({
     <form onSubmit={handleSubmit}>
       <Stack direction="column" gap={4}>
         <Input full label="Name" value={values.name} onChange={handleChange} type="text" name="name" required />
-        <Box css={{ position: 'relative' }}>
+        <Box
+          css={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            '& > label': {
+              flex: 1,
+            },
+            '& > label:nth-child(0)': {
+              marginRight: 16,
+            },
+          }}
+        >
           <Input
             full
             label="Username"
             value={values.username}
             onChange={handleChange}
             inputRef={inputEl}
-            isMasked
-            type="password"
+            type="text"
             name="username"
             required
           />
           <Input
             full
-            label="password"
+            label="Password"
             value={values.password}
             onChange={handleChange}
             inputRef={inputEl}
@@ -38,7 +49,7 @@ export default function GitForm({
         </Box>
         <Input
           full
-          label="Repository (username/repo)"
+          label="Repository (workspace/repo)"
           value={values.id}
           onChange={handleChange}
           type="text"
