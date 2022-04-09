@@ -2,6 +2,7 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { StorageProviderType } from '@/types/api';
 import GitForm from './StorageItemForm/GitForm';
+import GitbucketForm from './StorageItemForm/GitbucketForm';
 import JSONBinForm from './StorageItemForm/JSONBinForm';
 import URLForm from './StorageItemForm/URLForm';
 import { localApiStateSelector } from '@/selectors';
@@ -15,10 +16,20 @@ export default function StorageItemForm({
 
   switch (localApiState.provider) {
     case StorageProviderType.GITHUB:
-    case StorageProviderType.GITLAB:
-    case StorageProviderType.BITBUCKET: {
+    case StorageProviderType.GITLAB: {
       return (
         <GitForm
+          handleChange={handleChange}
+          handleSubmit={handleSubmit}
+          handleCancel={handleCancel}
+          values={values}
+          hasErrored={hasErrored}
+        />
+      );
+    }
+    case StorageProviderType.BITBUCKET: {
+      return (
+        <GitbucketForm
           handleChange={handleChange}
           handleSubmit={handleSubmit}
           handleCancel={handleCancel}

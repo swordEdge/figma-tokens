@@ -24,10 +24,20 @@ export default function CreateStorageItemModal({ isOpen, onClose, onSuccess }: P
   let defaultFields;
   switch (localApiState.provider) {
     case StorageProviderType.GITHUB:
-    case StorageProviderType.GITLAB:
-    case StorageProviderType.BITBUCKET: {
+    case StorageProviderType.GITLAB: {
       defaultFields = {
         secret: '',
+        id: '',
+        branch: '',
+        filePath: '',
+        baseUrl: '',
+      };
+      break;
+    }
+    case StorageProviderType.BITBUCKET: {
+      defaultFields = {
+        username: '',
+        password: '',
         id: '',
         branch: '',
         filePath: '',
