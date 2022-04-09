@@ -2,8 +2,8 @@ import React, { useRef } from 'react';
 import Box from '../Box';
 import Button from '../Button';
 import Input from '../Input';
-import Heading from '../Heading';
 import Stack from '../Stack';
+import Text from '../Text';
 
 export default function GitForm({
   handleChange, handleSubmit, handleCancel, values, hasErrored,
@@ -13,6 +13,7 @@ export default function GitForm({
     <form onSubmit={handleSubmit}>
       <Stack direction="column" gap={4}>
         <Input full label="Name" value={values.name} onChange={handleChange} type="text" name="name" required />
+        <Text size="xsmall" muted>Bitbucket</Text>
         <Box
           css={{
             display: 'flex',
@@ -20,7 +21,7 @@ export default function GitForm({
             '& > label': {
               flex: 1,
             },
-            '& > label:nth-child(0)': {
+            '& > :first-child': {
               marginRight: 16,
             },
           }}
@@ -93,9 +94,9 @@ export default function GitForm({
           </Button>
         </Stack>
         {hasErrored && (
-        <div className="bg-red-200 text-red-700 rounded p-4 text-xs font-bold" data-cy="provider-modal-error">
-          There was an error connecting. Check your credentials.
-        </div>
+          <div className="bg-red-200 text-red-700 rounded p-4 text-xs font-bold" data-cy="provider-modal-error">
+            There was an error connecting. Check your credentials.
+          </div>
         )}
       </Stack>
     </form>

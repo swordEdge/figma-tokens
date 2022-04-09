@@ -30,6 +30,8 @@ export interface ContextObject extends ApiDataType {
   tokens?: string;
   baseUrl?: string;
   internalId?: string;
+  username?: string;
+  password?: string;
 }
 
 export interface StoredCredentials {

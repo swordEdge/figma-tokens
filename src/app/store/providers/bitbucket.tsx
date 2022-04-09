@@ -383,7 +383,7 @@ export function useBitbucket() {
   async function syncTokensWithBitbucket(context: ContextObject): Promise<TokenValues | null> {
     try {
       const [owner, repo] = context.id.split('/');
-
+      console.log('password', context.password);
       const hasBranches = await fetchBranches({ context, owner, repo });
 
       if (!hasBranches) {
@@ -417,7 +417,7 @@ export function useBitbucket() {
 
   async function addNewBitbucketCredentials(context: ContextObject): Promise<TokenValues | null> {
     let { raw: rawTokenObj } = getTokenObj();
-
+    console.log('context', context);
     const data = await syncTokensWithBitbucket(context);
     if (data) {
       postToFigma({

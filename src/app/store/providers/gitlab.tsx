@@ -417,7 +417,7 @@ export function useGitLab() {
 
   async function addNewGitLabCredentials(context: ContextObject): Promise<TokenValues | null> {
     let { raw: rawTokenObj } = getTokenObj();
-
+    console.log('context', context);
     const data = await syncTokensWithGitLab(context);
     if (data) {
       postToFigma({
