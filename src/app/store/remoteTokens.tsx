@@ -126,7 +126,6 @@ export default function useRemoteTokens() {
   async function addNewProviderItem(context): Promise<boolean> {
     const credentials = context;
     let data;
-    console.log('credentials', credentials);
     switch (context.provider) {
       case StorageProviderType.JSONBIN: {
         if (context.id) {

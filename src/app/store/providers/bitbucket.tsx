@@ -1,12 +1,12 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { Bitbucket, APIClient } from 'bitbucket';
-import { cssNumber } from 'cypress/types/jquery';
+import { useHistory } from 'react-router-dom';
+import * as queryString from 'query-string';
 import { MessageToPluginTypes } from '@/types/messages';
 import { Dispatch } from '@/app/store';
 import convertTokensToObject from '@/utils/convertTokensToObject';
 import useConfirm from '@/app/hooks/useConfirm';
 import usePushDialog from '@/app/hooks/usePushDialog';
-import IsJSONString from '@/utils/isJSONString';
 import { ContextObject } from '@/types/api';
 import { notifyToUI, postToFigma } from '../../../plugin/notifiers';
 import { FeatureFlags } from '@/utils/featureFlags';
@@ -416,8 +416,28 @@ export function useBitbucket() {
   }
 
   async function addNewBitbucketCredentials(context: ContextObject): Promise<TokenValues | null> {
+    const history = useHistory();
     let { raw: rawTokenObj } = getTokenObj();
     console.log('context', context);
+
+    const access_token = '';
+    const url = queryString.stringifyUrl(
+      {
+        url: 'https://bitbucket.org/site/oauth2/authorize',
+        query: {
+          client_id: 'WBfqx5T4H7Mes8C5Gd',
+          response_type: 'code',
+          state: JSON.stringify({
+            provider: 'bitbucket',
+          }),
+        },
+      },
+      { encode: false },
+    );
+    history.push(url);
+
+    console.log('access_token', access_token);
+
     const data = await syncTokensWithBitbucket(context);
     if (data) {
       postToFigma({

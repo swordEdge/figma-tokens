@@ -13,7 +13,6 @@ export default function GitForm({
     <form onSubmit={handleSubmit}>
       <Stack direction="column" gap={4}>
         <Input full label="Name" value={values.name} onChange={handleChange} type="text" name="name" required />
-        <Text size="xsmall" muted>Bitbucket</Text>
         <Box
           css={{
             display: 'flex',
@@ -28,7 +27,7 @@ export default function GitForm({
         >
           <Input
             full
-            label="Username"
+            label="Bitbucket Username"
             value={values.username}
             onChange={handleChange}
             inputRef={inputEl}
